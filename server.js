@@ -34,7 +34,12 @@ var server = http.createServer(function(request, response){
       }
       let email = hash.sign_in_email
       let users = fs.readFileSync('./db/users', 'utf8')
-      users = JSON.parse(users)
+      //JSON.parse()必须解析有效的JSON对象, 否则报错.
+      try {
+        users = JSON.parse(users)
+      } catch(exception) {
+        users = []
+      }
       let foundUser
       for (let i = 0; i < users.length; i++) {
         if (users[i].email === email) {
@@ -75,7 +80,7 @@ var server = http.createServer(function(request, response){
         response.statusCode = 400
         response.setHeader('Content-Type', 'application/json;charset=utf-8')
         response.write(`{
-          "errors": {
+          "message": {
             "email": "invalid"
           }
         }`)
@@ -107,7 +112,7 @@ var server = http.createServer(function(request, response){
           response.statusCode = 400
           response.setHeader('Content-Type', 'application/json;charset=utf-8')
           response.write(`{
-            "errors": {
+            "message": {
               "email": "used"
             }
           }`)
@@ -117,6 +122,10 @@ var server = http.createServer(function(request, response){
           fs.writeFileSync('./db/users', usersString)
           console.log('写入数据库, 用户注册成功\n')
           response.statusCode = 200
+          response.setHeader('Content-Type', 'application/json;charset=utf-8')
+          response.write(`{
+            "email": "successed"
+          }`)
         }
       }
       response.end()
@@ -146,9 +155,9 @@ var server = http.createServer(function(request, response){
       } catch(exception) {
         users = []
       }
-      let found 
+      let found = false
       for (let i = 0; i < users.length; i++) {
-        if (users[i].email === email && users.password === password) {
+        if (users[i].email === email && users[i].password === password) {
           found = true
           break
         }
@@ -164,12 +173,12 @@ var server = http.createServer(function(request, response){
     })
   } else {
     response.statusCode = 404
-    response.setHeader('Content-Type', 'text/html;charset=utf-8')
-    response.write(`
-      {
-        "error": "Not Found"
-      }
-    `)
+    response.setHeader('Content-Type', 'application/json;charset=utf-8')
+    response.write(`{
+        "message": {
+          "error": "Not Found"
+        }
+      }`)
     response.end()
   }
 
