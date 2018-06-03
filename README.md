@@ -38,3 +38,6 @@ node server.js 8888
 # cookie
 当输入`localhost:8888`直接进入`index.html`页面时, 没有用户登录. 此时就没有设置`cookie`, 首页不会显示你的`cookie`.
 若通过用户登录进入首页, 则会设置`cookie`. 首页也会显示你的账户.
+
+# cache-control
+设置cache-control表示下次请求相同URL资源的最少时间.

@@ -8,6 +8,8 @@ if(!port){
   process.exit(1)
 }
 
+let sessions = {}
+
 var server = http.createServer(function(request, response){
   var parsedUrl = url.parse(request.url, true)
   var pathWithQuery = request.url 
@@ -19,39 +21,59 @@ var server = http.createServer(function(request, response){
 
 
   console.log('含查询字符串的路径: ' + pathWithQuery + '\n请求方法为: ' + method)
-
-  if(path === '/'){
+  if (path === '/js/main.js') {
+    let string = fs.readFileSync('./js/main.js', 'utf8')
+    response.setHeader('Content-Type', 'application/javascript;charset=utf8')
+    response.setHeader('Cache-Control', 'max-age=30')   //至少30s才会重新请求
+    response.write(string)
+    response.end()
+  } else if (path === '/css/default.css') {
+    let string = fs.readFileSync('./css/default.css')
+    response.setHeader('Content-Type', 'text/css;charset=utf8')
+    response.setHeader('Cache-Control', 'max-age=30')
+    response.write(string)
+    response.end()
+  } else if(path === '/'){
     let string = fs.readFileSync('./index.html', 'utf8')
+    let cookies 
     if (request.headers.cookie) {
       //存在cookie
-      let cookies = request.headers.cookie.split('; ')
-      let hash = {}
-      for (let i = 0; i < cookies.length; i++) {
-        let parts = cookies[i].split('=')
-        let key = parts[0]
-        let value = parts[1]
-        hash[key] = value
-      }
-      let email = hash.sign_in_email
-      let users = fs.readFileSync('./db/users', 'utf8')
-      //JSON.parse()必须解析有效的JSON对象, 否则报错.
-      try {
-        users = JSON.parse(users)
-      } catch(exception) {
-        users = []
-      }
-      let foundUser
-      for (let i = 0; i < users.length; i++) {
-        if (users[i].email === email) {
-          foundUser = users[i]
-          break
-        }
-      }
-      if (foundUser) {
-        string = string.replace('__user__', foundUser.email)
-      }
+      cookies = request.headers.cookie.split('; ')
     } else {
-     string = string.replace('__user__', '同学')
+      cookies = ''
+    }
+    let hash = {}
+    for (let i = 0; i < cookies.length; i++) {
+      let parts = cookies[i].split('=')
+      let key = parts[0]
+      let value = parts[1]
+      hash[key] = value
+    }
+
+    let mySession = sessions[hash['sessionId']]
+    let email 
+    if (mySession) {
+      email = mySession['sign_in_email']
+    } 
+    
+    let users = fs.readFileSync('./db/users', 'utf8')
+    //JSON.parse()必须解析有效的JSON对象, 否则报错.
+    try {
+      users = JSON.parse(users)
+    } catch(exception) {
+      users = []
+    }
+    let foundUser
+    for (let i = 0; i < users.length; i++) {
+      if (users[i].email === email) {
+        foundUser = users[i]
+        break
+      }
+    }
+    if (foundUser) {
+      string = string.replace('__user__', foundUser.email)
+    } else {
+      string = string.replace('__user__', '同学')
     }
     response.statusCode = 200
     response.setHeader('Content-Type', 'text/html;charset=utf-8')
@@ -163,8 +185,10 @@ var server = http.createServer(function(request, response){
         }
       }
       if (found) {
-        response.setHeader('Set-Cookie', `sign_in_email=${email}`)
-        console.log('设置cookie')
+        let sessionId = Math.random() * 100000
+        sessions[sessionId] = {'sign_in_email': email}
+        response.setHeader('Set-Cookie', `sessionId=${sessionId}`)
+        console.log('通过cookie设置session')
         response.statusCode = 200
       } else {
         response.statusCode = 401
